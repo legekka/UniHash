@@ -11,7 +11,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get('/async')
+  @Get('/test')
   getHello2(): Observable<string> {
     return this.appService.getHelloObservable();
   }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { NicehashService } from '../nicehash/nicehash.service';
 import { interval, Observable, zip } from 'rxjs';
 import { mergeMap, map, tap } from 'rxjs/operators';
@@ -13,8 +14,13 @@ export class RigMonitorService {
 
     constructor(
         private nicehashService: NicehashService,
+        @InjectRepository(RigMiningDetails)
         private rigRepository: Repository<RigMiningDetails>
     ) {
+        this.nicehashService.getRigGroups().subscribe(groups => {
+            console.log(groups);
+        });
+
         this.initRigStats();
     }
 
