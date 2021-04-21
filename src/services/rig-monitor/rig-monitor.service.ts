@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { NicehashService } from '../nicehash/nicehash.service';
-import { interval, Observable, zip } from 'rxjs';
+import { Observable, timer, zip } from 'rxjs';
 import { mergeMap, map, tap } from 'rxjs/operators';
-import { RigMiningDetails, RigMiningDetailsDTO } from 'src/models/rig-mining-details';
+import { RigMiningDetailsDTO } from 'src/models/rig-mining-details-dto';
+import { Groups } from 'src/models/nicehash/group';
+import { Rig } from 'src/models/nicehash/rig';
 import { Repository } from 'typeorm';
 import { RigDetails } from 'src/models/nicehash/rig-details';
+import { RigMiningDetails } from 'src/entities/rig-mining-details.entity';
 
 @Injectable()
 export class RigMonitorService {
 
+    private groupsSource: Observable<Rig[]>;
     private rigStatsSource: Observable<RigMiningDetailsDTO[]>;
 
     constructor(
@@ -17,18 +21,34 @@ export class RigMonitorService {
         @InjectRepository(RigMiningDetails)
         private rigRepository: Repository<RigMiningDetails>
     ) {
-        this.nicehashService.getRigGroups().subscribe(groups => {
-            console.log(groups);
-        });
-
+        this.initGroups();
         this.initRigStats();
+
+        this.groupsSource.subscribe();
+        this.rigStatsSource.subscribe();
+    }
+
+    private initGroups(): void {
+        // Every 4 hours
+        this.groupsSource = timer(0, 1000*60*60*4).pipe(
+            mergeMap(() => this.nicehashService.getRigGroups()),
+            map((groups: Groups) => {
+                const rigs: Rig[] = [];
+                Object.values(groups.groups).forEach(group => rigs.push(...group.rigs));
+                return rigs;
+            }),
+            tap((rigs: Rig[]) => this.updateOrAddNewRigs(rigs)),
+            tap((rigs: Rig[]) => this.deleteRemovedRigs(rigs))
+        );
     }
 
     private initRigStats(): void {
-        this.rigStatsSource = interval(30000).pipe(
+        // Every 30 seconds
+        console.log("anyád")
+        this.rigStatsSource = timer(0, 1000*30).pipe(
             mergeMap(() => this.rigRepository.find()),
-            mergeMap(rigs => zip([...rigs.map(rig => this.nicehashService.getRigDetails(rig.rigId))])),
-            mergeMap(rigDetails => zip([...rigDetails.map(async rig => {
+            mergeMap(rigs => zip(...rigs.map(rig => this.nicehashService.getRigDetails(rig.rigId)))),
+            mergeMap(rigDetails => zip(...rigDetails.map(async rig => {
                 const rigMiningDetails = await this.rigRepository.findOne({
                     where: {
                         rigId: rig.rigId
@@ -40,7 +60,7 @@ export class RigMonitorService {
                 rigMiningDetails.currentUnpaidAmount = rig.unpaidAmount;
                 await this.rigRepository.save(rigMiningDetails);
                 return this.createDTO(rig, rigMiningDetails);
-            })])),
+            }))),
             map(dtos => {
                 const currentUnpaidAmountTotal = dtos.reduce((total, current) => total += current.currentUnpaidAmount, 0);
                 const totalUnpaidAmountTotal = dtos.reduce((total, current) => total += current.totalUnpaidAmount, 0);
@@ -53,8 +73,45 @@ export class RigMonitorService {
         );
     }
 
+    // Private helpers
+
+    private updateOrAddNewRigs(rigs: Rig[]): void {
+        rigs.forEach(async rig => {
+            let rigMiningDetails = await this.rigRepository.findOne({ where: { rigId: rig.rigId } });
+            if (rigMiningDetails == null) {
+                rigMiningDetails = {
+                    id: null,
+                    rigId: rig.rigId,
+                    name: rig.name,
+                    currentUnpaidAmount: 0,
+                    totalUnpaidAmount: 0,
+                    uptimeDate: Date.now()
+                };
+            } else if (rig.name !== rigMiningDetails.name) {
+                rigMiningDetails.name = rig.name;
+            }
+            await this.rigRepository.save(rigMiningDetails);
+        })
+    }
+
+    private async deleteRemovedRigs(rigs: Rig[]) {
+        const rigMiningDetailsList = await this.rigRepository.find();
+        rigMiningDetailsList.forEach(async rigMiningDetails => {
+            if (rigs.every(rig => rig.rigId !== rigMiningDetails.rigId)) {
+                await this.rigRepository.delete({ rigId: rigMiningDetails.rigId });
+            }
+        });
+    }
+
     private createDTO(rigDetails: RigDetails, rig: RigMiningDetails): RigMiningDetailsDTO {
-        let dto = rig as RigMiningDetailsDTO;
+        const dto: RigMiningDetailsDTO = {
+            id: rig.id,
+            rigId: rig.rigId,
+            name: rig.name,
+            currentUnpaidAmount: rig.currentUnpaidAmount,
+            totalUnpaidAmount: rig.totalUnpaidAmount,
+            uptimeDate: rig.uptimeDate
+        };
         if (rigDetails.devices.length >= 2) {
             dto.temperature = rigDetails.devices[1].temperature;
             dto.revolutionsPerMinute = rigDetails.devices[1].revolutionsPerMinute;
@@ -72,22 +129,3 @@ export class RigMonitorService {
     }
 
 }
-
-/*
-rigId
-name
-currentUnpaidAmount
-totalUnpaidAmount
-uptimeDate
-
-currentUnpaidAmountPercent      - calculated from all rig's currentUnpaidAmount
-totalUnpaidAmountPercent        - calculated from all rig's totalUnpaidAmount
-algorithm                       - rigdetails.devices[1].speeds[0]
-speed                           - rigdetails.devices[1].speeds[0]
-displaySuffix                   - rigdetails.devices[1].speeds[0]
-temperature                     - rigdetails.devices[1]
-revolutionsPerMinute            - rigdetails.devices[1]
-revolutionsPerMinutePercentage  - rigdetails.devices[1]
-profitability                   - rigdetails.devices[1]
-localProfitability              - rigdetails.devices[1]
-*/

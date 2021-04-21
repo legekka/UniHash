@@ -1,6 +1,8 @@
 import { PowerMode, Rig, RigNotification } from "./rig";
 
-export type Groups = { [groupName: string]: Group }
+export type Groups = {
+    groups: { [groupName: string]: Group }
+}
 
 export enum GroupNotification {
     ALL = 'ALL',

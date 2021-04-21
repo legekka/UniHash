@@ -7,6 +7,7 @@ import { NicehashService } from './services/nicehash/nicehash.service';
 import { RigMonitorService } from './services/rig-monitor/rig-monitor.service';
 import { Connection } from 'typeorm';
 import { getConnectionOptions } from 'typeorm';
+import { RigMiningDetails } from './entities/rig-mining-details.entity';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { getConnectionOptions } from 'typeorm';
       envFilePath: '.development.env'
     }),
     HttpModule,
-    TypeOrmModule.forRoot()
+    TypeOrmModule.forRoot(),
+    TypeOrmModule.forFeature([RigMiningDetails])
   ],
   controllers: [AppController],
   providers: [AppService, NicehashService, RigMonitorService],

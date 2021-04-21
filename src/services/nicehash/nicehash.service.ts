@@ -10,6 +10,8 @@ import { RigDetails } from 'src/models/nicehash/rig-details';
 @Injectable()
 export class NicehashService {
 
+    private readonly baseUrl: string = 'https://api2.nicehash.com'
+
     private apiKey: string;
     private apiSecret: string;
     private organizationId: string;
@@ -25,14 +27,16 @@ export class NicehashService {
 
     getRigGroups(): Observable<Groups> {
         const path = '/main/api/v2/mining/groups/list';
-        return this.http.get<Groups>(path, { headers: this.getHeaders('GET', path) }).pipe(
+        const url = this.baseUrl + path;
+        return this.http.get<Groups>(url, { headers: this.getHeaders('GET', path) }).pipe(
             map(response => response.data)
         );
     }
 
     getRigDetails(rigId: string): Observable<RigDetails> {
         const path = `/main/api/v2/mining/rig2/${rigId}`;
-        return this.http.get<RigDetails>(path, {headers: this.getHeaders('GET', path)}).pipe(
+        const url = this.baseUrl + path;
+        return this.http.get<RigDetails>(url, {headers: this.getHeaders('GET', path)}).pipe(
             map(response => response.data)
         );
     }

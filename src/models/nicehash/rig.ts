@@ -29,8 +29,8 @@ export interface Rig {
     rigId: string;
     name: string;
     status: RigStatus;
-    powerMode: PowerMode;
-    notifications: RigNotification[];
-    totalDevices: number;
-    activeDevices: number;
+    powerMode?: PowerMode;
+    notifications?: RigNotification[];
+    totalDevices?: number;
+    activeDevices?: number;
 }
