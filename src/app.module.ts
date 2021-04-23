@@ -8,6 +8,8 @@ import { RigMonitorService } from './services/rig-monitor/rig-monitor.service';
 import { Connection } from 'typeorm';
 import { getConnectionOptions } from 'typeorm';
 import { RigMiningDetails } from './entities/rig-mining-details.entity';
+import { RigController } from './controllers/rig/rig.controller';
+import { RigGateway } from './gateways/rig.gateway';
 
 @Module({
   imports: [
@@ -18,8 +20,8 @@ import { RigMiningDetails } from './entities/rig-mining-details.entity';
     TypeOrmModule.forRoot(),
     TypeOrmModule.forFeature([RigMiningDetails])
   ],
-  controllers: [AppController],
-  providers: [AppService, NicehashService, RigMonitorService],
+  controllers: [AppController, RigController],
+  providers: [AppService, NicehashService, RigMonitorService, RigGateway],
 })
 export class AppModule {
   constructor(private connection: Connection) {}

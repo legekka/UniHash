@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { NicehashService } from '../nicehash/nicehash.service';
-import { Observable, timer, zip } from 'rxjs';
+import { Observable, ReplaySubject, Subject, timer, zip } from 'rxjs';
 import { mergeMap, map, tap } from 'rxjs/operators';
 import { RigMiningDetailsDTO } from 'src/models/rig-mining-details-dto';
 import { Groups } from 'src/models/nicehash/group';
@@ -14,7 +14,7 @@ import { RigMiningDetails } from 'src/entities/rig-mining-details.entity';
 export class RigMonitorService {
 
     private groupsSource: Observable<Rig[]>;
-    private rigStatsSource: Observable<RigMiningDetailsDTO[]>;
+    private rigMiningDetailsSource: ReplaySubject<RigMiningDetailsDTO[]> = new ReplaySubject(120);
 
     constructor(
         private nicehashService: NicehashService,
@@ -25,8 +25,9 @@ export class RigMonitorService {
         this.initRigStats();
 
         this.groupsSource.subscribe();
-        this.rigStatsSource.subscribe();
     }
+
+    // Initializers
 
     private initGroups(): void {
         // Every 4 hours
@@ -44,16 +45,13 @@ export class RigMonitorService {
 
     private initRigStats(): void {
         // Every 30 seconds
-        console.log("anyád")
-        this.rigStatsSource = timer(0, 1000*30).pipe(
+        timer(0, 1000*30).pipe(
+            // Getting rigs from DB
             mergeMap(() => this.rigRepository.find()),
+            // Getting rig details from Nicehash API
             mergeMap(rigs => zip(...rigs.map(rig => this.nicehashService.getRigDetails(rig.rigId)))),
             mergeMap(rigDetails => zip(...rigDetails.map(async rig => {
-                const rigMiningDetails = await this.rigRepository.findOne({
-                    where: {
-                        rigId: rig.rigId
-                    }
-                });
+                const rigMiningDetails = await this.rigRepository.findOne({ where: { rigId: rig.rigId } });
                 if (rigMiningDetails.currentUnpaidAmount > rig.unpaidAmount) {
                     rigMiningDetails.totalUnpaidAmount += rigMiningDetails.currentUnpaidAmount;
                 }
@@ -70,7 +68,13 @@ export class RigMonitorService {
                 });
                 return dtos;
             })
-        );
+        ).subscribe(dtos => this.rigMiningDetailsSource.next(dtos));
+    }
+
+    // Public methods
+
+    public getRigMiningDetailsStream(): Observable<RigMiningDetailsDTO[]> {
+        return this.rigMiningDetailsSource.asObservable();
     }
 
     // Private helpers
