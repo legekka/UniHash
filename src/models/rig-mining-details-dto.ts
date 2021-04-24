@@ -1,14 +1,16 @@
 import { Algorithm } from "./nicehash/algorithm.enum";
 import { RigStatus } from "./nicehash/rig";
 
-export interface RigMiningDetailsDTO {
-    id: number;
-    rigId: string;
-    name: string;
+export interface RigDTO {
+    rig: {
+        id: number;
+        rigId: string;
+        name: string;
+    }
+    snapshotId: number;
+    timestamp: Date;
     currentUnpaidAmount: number;
     totalUnpaidAmount: number;
-    uptimeDate: number;
-
     currentUnpaidAmountPercent?: number;     // calculated from all rig's currentUnpaidAmount
     totalUnpaidAmountPercent?: number;       // calculated from all rig's totalUnpaidAmount
     algorithm?: Algorithm;                   // rigdetails.devices[1].speeds[0]
@@ -18,6 +20,6 @@ export interface RigMiningDetailsDTO {
     revolutionsPerMinute?: number;           // same
     revolutionsPerMinutePercentage?: number;
     profitability?: number;
-    localProfitability?: number;
     minerStatus?: RigStatus;
+    statusTime?: Date;
 }

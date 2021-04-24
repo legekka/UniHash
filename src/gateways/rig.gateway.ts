@@ -14,8 +14,8 @@ export class RigGateway {
     ) {
         rigMonitorService.getRigMiningDetailsStream().pipe(
             filter(() => Object.keys(this.server.clients().sockets).length > 0)
-        ).subscribe(rigMiningDetailsList => {
-            this.server.emit('events', rigMiningDetailsList);
+        ).subscribe(rigDTOs => {
+            this.server.emit('rig-snapshots', rigDTOs);
         });
     }
 
