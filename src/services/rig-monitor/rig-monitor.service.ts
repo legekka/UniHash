@@ -47,8 +47,8 @@ export class RigMonitorService {
     private initRigStats(): void {
         // Every 30 seconds
         timer(0, 1000*30).pipe(
-            // Getting rigs from DB
-            mergeMap(() => this.rigRepository.find()),
+            // Getting active rigs from DB
+            mergeMap(() => this.rigRepository.find({ where: { active: true } })),
             // Getting rig details from Nicehash API
             mergeMap(rigs => zip(...rigs.map(rig => this.nicehashService.getRigDetails(rig.rigId)))),
             // Attaching timestamp
