@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { NicehashService } from '../nicehash/nicehash.service';
 import { Observable, of, ReplaySubject, timer, zip, from } from 'rxjs';
 import { mergeMap, map, tap } from 'rxjs/operators';
-import { RigDTO } from 'src/models/rig-mining-details-dto';
+import { RigDTO } from 'src/models/dto/rig-dto';
 import { Groups } from 'src/models/nicehash/group';
 import { Rig } from 'src/models/nicehash/rig';
 import { MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
@@ -11,6 +11,8 @@ import { RigDetails } from 'src/models/nicehash/rig-details';
 import { RigEntity } from 'src/entities/rig.entity';
 import { RigSnapshotEntity } from 'src/entities/rig-snapshot.entity';
 import { Algorithm } from 'src/models/nicehash/algorithm.enum';
+import { RigSnapshotDTO } from 'src/models/dto/rig-snapshot-dto';
+import { CreateRigDTOsFromSnapshots, CreateRigSnapshotDTO } from 'src/models/mapper/rig-dto-mapper';
 
 @Injectable()
 export class RigMonitorService {
@@ -54,16 +56,12 @@ export class RigMonitorService {
             // Attaching timestamp
             map(rigs => [new Date(), rigs]),
             // Creating snapshots from rig details
-            mergeMap(([date, rigDetails]: [Date, RigDetails[]]) => zip(of(rigDetails), Promise.all(rigDetails.map(rigDetail => this.createRigSnapshot(date, rigDetail))))),
+            mergeMap(([date, rigDetails]: [Date, RigDetails[]]) => Promise.all(rigDetails.map(rigDetail => this.createRigSnapshot(date, rigDetail)))),
             // Saving snapshots
-            mergeMap(([rigDetails, rigSnapshots]: [RigDetails[], RigSnapshotEntity[]]) => zip(of(rigDetails), this.rigSnapshotRepository.save(rigSnapshots))),
-            // Creating DTOs from rig details and snapshots
-            map(([rigDetails, rigSnapshots]: [RigDetails[], RigSnapshotEntity[]]) => {
-                return rigDetails.map((rig, i) => this.createDTO(rig, rigSnapshots[i]));
-            }),
-            // Calculating percentages
-            map(dtos => this.calculatePercentages(dtos)),
-            // Emitting data on source
+            mergeMap((rigSnapshots: RigSnapshotEntity[]) => this.rigSnapshotRepository.save(rigSnapshots)),
+            // Creating DTOs from snapshots
+            map((rigSnapshots: RigSnapshotEntity[]) => CreateRigDTOsFromSnapshots(rigSnapshots)),
+            // Emitting data
             tap(dtos => this.rigMiningDetailsSource.next(dtos))
         ).subscribe();
     }
@@ -76,7 +74,7 @@ export class RigMonitorService {
 
     public getRigSnapshots(fromDate: Date): Observable<RigDTO[]> {
         return from(this.rigSnapshotRepository.find({ where: { timestamp: MoreThanOrEqual(fromDate) } })).pipe(
-            map(snapshots => snapshots.map(snapshot => this.createDTOFromSnapshot(snapshot)))
+            map(snapshots => CreateRigDTOsFromSnapshots(snapshots))
         );
     }
 
@@ -129,10 +127,12 @@ export class RigMonitorService {
         let speed: number;
         let algorithm: Algorithm;
         let displaySuffix: string;
+        let powerUsage: number;
         if (rigDetails.devices.length >= 2) {
             temperature = rigDetails.devices[1].temperature
             revolutionsPerMinute = rigDetails.devices[1].revolutionsPerMinute;
             revolutionsPerMinutePercentage = rigDetails.devices[1].revolutionsPerMinutePercentage;
+            powerUsage = rigDetails.devices[1].powerUsage;
             if (rigDetails.devices[1].speeds.length >= 1) {
                 speed = rigDetails.devices[1].speeds[0].speed;
                 algorithm = rigDetails.devices[1].speeds[0].algorithm;
@@ -148,6 +148,7 @@ export class RigMonitorService {
             totalUnpaidAmount,
             speed,
             displaySuffix,
+            powerUsage,
             temperature,
             profitability: rigDetails.profitability,
             minerStatus: rigDetails.minerStatus,
@@ -160,14 +161,8 @@ export class RigMonitorService {
 
     private async calculateTotalUnpaidAmount(rigDetails: RigDetails): Promise<number> {
         const lastRigSnapshot = await this.rigSnapshotRepository.findOne({ 
-            where: { 
-                rig: { 
-                    rigId: rigDetails.rigId 
-                } 
-            }, 
-            order: { 
-                timestamp: 'DESC' 
-            } 
+            where: { rig: { rigId: rigDetails.rigId } }, 
+            order: { timestamp: 'DESC' } 
         });
         if (lastRigSnapshot == null) {
             return 0;
@@ -176,65 +171,6 @@ export class RigMonitorService {
             return lastRigSnapshot.totalUnpaidAmount + rigDetails.unpaidAmount;
         }
         return lastRigSnapshot.totalUnpaidAmount;
-    }
-
-    private createDTO(rigDetails: RigDetails, rigSnapshot: RigSnapshotEntity): RigDTO {
-        const dto: RigDTO = {
-            rig: {
-                id: rigSnapshot.rig.id,
-                rigId: rigSnapshot.rig.rigId,
-                name: rigSnapshot.rig.name,
-            },
-            snapshotId: rigSnapshot.id,
-            timestamp: rigSnapshot.timestamp,
-            currentUnpaidAmount: rigSnapshot.currentUnpaidAmount,
-            totalUnpaidAmount: rigSnapshot.totalUnpaidAmount,
-            statusTime: rigSnapshot.statusTime,
-            minerStatus: rigSnapshot.minerStatus,
-            profitability: rigSnapshot.profitability
-        };
-        if (rigDetails.devices.length >= 2) {
-            dto.temperature = rigDetails.devices[1].temperature;
-            dto.revolutionsPerMinute = rigDetails.devices[1].revolutionsPerMinute;
-            dto.revolutionsPerMinutePercentage = rigDetails.devices[1].revolutionsPerMinutePercentage;
-            if (rigDetails.devices[1].speeds.length >= 1) {
-                dto.speed = rigDetails.devices[1].speeds[0].speed;
-                dto.algorithm = rigDetails.devices[1].speeds[0].algorithm;
-                dto.displaySuffix = rigDetails.devices[1].speeds[0].displaySuffix;
-            }
-        }
-        return dto;
-    }
-
-    private createDTOFromSnapshot(rigSnapshot: RigSnapshotEntity): RigDTO {
-        const dto: RigDTO = {
-            rig: {
-                id: rigSnapshot.rig.id,
-                rigId: rigSnapshot.rig.rigId,
-                name: rigSnapshot.rig.name,
-            },
-            snapshotId: rigSnapshot.id,
-            timestamp: rigSnapshot.timestamp,
-            currentUnpaidAmount: rigSnapshot.currentUnpaidAmount,
-            totalUnpaidAmount: rigSnapshot.totalUnpaidAmount,
-            statusTime: rigSnapshot.statusTime,
-            minerStatus: rigSnapshot.minerStatus,
-            profitability: rigSnapshot.profitability,
-            speed: rigSnapshot.speed,
-            displaySuffix: rigSnapshot.displaySuffix,
-            temperature: rigSnapshot.temperature
-        };
-        return dto;
-    }
-
-    private calculatePercentages(dtos: RigDTO[]): RigDTO[] {
-        const currentUnpaidAmountTotal = dtos.reduce((total, current) => total += current.currentUnpaidAmount, 0);
-        const totalUnpaidAmountTotal = dtos.reduce((total, current) => total += current.totalUnpaidAmount, 0);
-        dtos.forEach(dto => {
-            dto.currentUnpaidAmountPercent = dto.currentUnpaidAmount / currentUnpaidAmountTotal;
-            dto.totalUnpaidAmountPercent = dto.totalUnpaidAmount / totalUnpaidAmountTotal;
-        });
-        return dtos;
     }
 
 }

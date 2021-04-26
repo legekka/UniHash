@@ -23,7 +23,7 @@ export class RigSnapshotEntity {
     @Column({ type: "enum", enum: RigStatus })
     minerStatus?: RigStatus;
 
-    @Column({ type: "timestamptz"})
+    @Column({ type: "timestamptz" })
     statusTime: Date;
 
     @Column({ type: "float", nullable: true })
@@ -46,6 +46,9 @@ export class RigSnapshotEntity {
 
     @Column({ type: "double precision", nullable: true })
     profitability?: number;
+
+    @Column({ nullable: true })
+    powerUsage?: number;
 
 }
 

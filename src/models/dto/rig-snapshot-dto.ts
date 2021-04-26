@@ -1,13 +1,8 @@
-import { Algorithm } from "./nicehash/algorithm.enum";
-import { RigStatus } from "./nicehash/rig";
+import { Algorithm } from "../nicehash/algorithm.enum";
+import { RigStatus } from "../nicehash/rig";
 
-export interface RigDTO {
-    rig: {
-        id: number;
-        rigId: string;
-        name: string;
-    }
-    snapshotId: number;
+export interface RigSnapshotDTO {
+    id: number;
     timestamp: Date;
     currentUnpaidAmount: number;
     totalUnpaidAmount: number;
@@ -17,6 +12,7 @@ export interface RigDTO {
     speed?: number;                          // rigdetails.devices[1].speeds[0]
     displaySuffix?: string;                  // rigdetails.devices[1].speeds[0]
     temperature?: number;                    // rigdetails.devices[1]     
+    powerUsage?: number;
     revolutionsPerMinute?: number;           // same
     revolutionsPerMinutePercentage?: number;
     profitability?: number;
