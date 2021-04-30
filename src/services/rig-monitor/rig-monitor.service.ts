@@ -129,7 +129,7 @@ export class RigMonitorService {
         let displaySuffix: string;
         let powerUsage: number;
         if (rigDetails.devices.length >= 2) {
-            temperature = rigDetails.devices[1].temperature
+            temperature = rigDetails.devices[1].temperature % 65536
             revolutionsPerMinute = rigDetails.devices[1].revolutionsPerMinute;
             revolutionsPerMinutePercentage = rigDetails.devices[1].revolutionsPerMinutePercentage;
             powerUsage = rigDetails.devices[1].powerUsage;
