@@ -10,6 +10,9 @@ import { RigEntity } from './entities/rig.entity';
 import { RigController } from './controllers/rig/rig.controller';
 import { RigGateway } from './gateways/rig.gateway';
 import { RigSnapshotEntity } from './entities/rig-snapshot.entity';
+import { AccountBalanceEntity } from './entities/account-balance.entity';
+import { AccountController } from './controllers/account/account.controller';
+import { AccountService } from './services/account/services/account.service';
 
 @Module({
   imports: [
@@ -18,11 +21,11 @@ import { RigSnapshotEntity } from './entities/rig-snapshot.entity';
     }),
     HttpModule,
     TypeOrmModule.forRoot(),
-    TypeOrmModule.forFeature([RigEntity, RigSnapshotEntity])
+    TypeOrmModule.forFeature([RigEntity, RigSnapshotEntity, AccountBalanceEntity])
   ],
-  controllers: [AppController, RigController],
-  providers: [AppService, NicehashService, RigMonitorService, RigGateway],
+  controllers: [AppController, RigController, AccountController],
+  providers: [AppService, NicehashService, RigMonitorService, RigGateway, AccountService],
 })
 export class AppModule {
-  constructor(private connection: Connection) {}
+  constructor(private connection: Connection) { }
 }

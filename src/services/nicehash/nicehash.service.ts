@@ -6,6 +6,7 @@ import { Groups } from 'src/models/nicehash/group';
 import { v4 as uuidv4 } from 'uuid';
 import * as Crypto from 'crypto';
 import { RigDetails } from 'src/models/nicehash/rig-details';
+import { AccountResponse } from 'src/models/nicehash/account';
 
 @Injectable()
 export class NicehashService {
@@ -36,7 +37,16 @@ export class NicehashService {
     getRigDetails(rigId: string): Observable<RigDetails> {
         const path = `/main/api/v2/mining/rig2/${rigId}`;
         const url = this.baseUrl + path;
-        return this.http.get<RigDetails>(url, {headers: this.getHeaders('GET', path)}).pipe(
+        return this.http.get<RigDetails>(url, { headers: this.getHeaders('GET', path) }).pipe(
+            map(response => response.data)
+        );
+    }
+
+    getAccountBalance(): Observable<AccountResponse> {
+        const path = `/main/api/v2/accounting/accounts2`;
+        const query = "fiat=BTC&extendedResponse=false";
+        const url = this.baseUrl + path + "?" + query;
+        return this.http.get<AccountResponse>(url, { headers: this.getHeaders('GET', path, query) }).pipe(
             map(response => response.data)
         );
     }
