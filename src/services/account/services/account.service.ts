@@ -55,8 +55,8 @@ export class AccountService {
         this.accountBalanceDTO = accountBalanceDTO;
         let entity = new AccountBalanceEntity();
         entity.timestamp = new Date();
-        entity.currency = accountBalanceDTO.currency,
-            entity.totalBalance = accountBalanceDTO.totalBalance
+        entity.currency = accountBalanceDTO.currency;
+        entity.totalBalance = accountBalanceDTO.totalBalance;
         this.accountBalanceRepository.save(entity);
     }
 }

@@ -120,6 +120,8 @@ export class RigMonitorService {
     }
 
     private async createRigSnapshot(timestamp: Date, rigDetails: RigDetails): Promise<RigSnapshotEntity> {
+        rigDetails.unpaidAmount = parseFloat(`${rigDetails.unpaidAmount}`);
+
         const rig: RigEntity = await this.rigRepository.findOne({ where: { rigId: rigDetails.rigId } });
         let temperature: number;
         let revolutionsPerMinute: number;
@@ -160,8 +162,9 @@ export class RigMonitorService {
     }
 
     private async calculateTotalUnpaidAmount(rigDetails: RigDetails): Promise<number> {
+        const rig = await this.rigRepository.findOne({ where: { rigId: rigDetails.rigId } });
         const lastRigSnapshot = await this.rigSnapshotRepository.findOne({ 
-            where: { rig: { rigId: rigDetails.rigId } }, 
+            where: { rig: rig }, 
             order: { timestamp: 'DESC' } 
         });
         if (lastRigSnapshot == null) {
