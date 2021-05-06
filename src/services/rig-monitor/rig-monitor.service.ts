@@ -171,7 +171,7 @@ export class RigMonitorService {
             return 0;
         }
         if (lastRigSnapshot.currentUnpaidAmount > rigDetails.unpaidAmount) {
-            return lastRigSnapshot.totalUnpaidAmount + rigDetails.unpaidAmount;
+            return lastRigSnapshot.totalUnpaidAmount + lastRigSnapshot.currentUnpaidAmount;
         }
         return lastRigSnapshot.totalUnpaidAmount;
     }
