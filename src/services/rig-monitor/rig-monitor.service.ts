@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { NicehashService } from '../nicehash/nicehash.service';
-import { Observable, of, ReplaySubject, timer, zip, from } from 'rxjs';
+import { Observable, ReplaySubject, timer, zip, from } from 'rxjs';
 import { mergeMap, map, tap } from 'rxjs/operators';
 import { RigDTO } from 'src/models/dto/rig-dto';
 import { Groups } from 'src/models/nicehash/group';
 import { Rig } from 'src/models/nicehash/rig';
-import { MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { RigDetails } from 'src/models/nicehash/rig-details';
 import { RigEntity } from 'src/entities/rig.entity';
 import { RigSnapshotEntity } from 'src/entities/rig-snapshot.entity';
 import { Algorithm } from 'src/models/nicehash/algorithm.enum';
-import { RigSnapshotDTO } from 'src/models/dto/rig-snapshot-dto';
-import { CreateRigDTOsFromSnapshots, CreateRigSnapshotDTO } from 'src/models/mapper/rig-dto-mapper';
+import { CreateRigDTOsFromSnapshots } from 'src/models/mapper/rig-dto-mapper';
+import { RigTotalDTO } from 'src/models/dto/rig-total-dto';
 
 @Injectable()
 export class RigMonitorService {
@@ -34,7 +34,7 @@ export class RigMonitorService {
 
     private initGroups(): void {
         // Every 4 hours
-        timer(0, 1000*60*60*4).pipe(
+        timer(0, 1000 * 60 * 60 * 4).pipe(
             mergeMap(() => this.nicehashService.getRigGroups()),
             map((groups: Groups) => {
                 const rigs: Rig[] = [];
@@ -48,7 +48,7 @@ export class RigMonitorService {
 
     private initRigStats(): void {
         // Every 30 seconds
-        timer(0, 1000*30).pipe(
+        timer(0, 1000 * 30).pipe(
             // Getting active rigs from DB
             mergeMap(() => this.rigRepository.find({ where: { active: true } })),
             // Getting rig details from Nicehash API
@@ -76,6 +76,50 @@ export class RigMonitorService {
         return from(this.rigSnapshotRepository.find({ where: { timestamp: MoreThanOrEqual(fromDate) } })).pipe(
             map(snapshots => CreateRigDTOsFromSnapshots(snapshots))
         );
+    }
+
+    public async resetTotals(): Promise<void> {
+        const rigs: RigEntity[] = await this.rigRepository.find();
+        rigs.forEach(async rig => {
+            const lastRigSnapshot = await this.rigSnapshotRepository.findOne({
+                where: { rig: rig },
+                order: { timestamp: 'DESC' }
+            });
+            let rigSnapshot: RigSnapshotEntity = {
+                id: null,
+                rig: rig,
+                timestamp: new Date(),
+                currentUnpaidAmount: lastRigSnapshot.currentUnpaidAmount,
+                totalUnpaidAmount: 0,
+                speed: lastRigSnapshot.speed,
+                displaySuffix: lastRigSnapshot.displaySuffix,
+                powerUsage: lastRigSnapshot.powerUsage,
+                temperature: lastRigSnapshot.temperature,
+                profitability: lastRigSnapshot.profitability,
+                minerStatus: lastRigSnapshot.minerStatus,
+                statusTime: lastRigSnapshot.statusTime,
+                algorithm: lastRigSnapshot.algorithm,
+                revolutionsPerMinute: lastRigSnapshot.revolutionsPerMinute,
+                revolutionsPerMinutePercentage: lastRigSnapshot.revolutionsPerMinutePercentage
+            }
+            this.rigSnapshotRepository.save(rigSnapshot);
+        });
+    }
+
+    public async getTotals(): Promise<RigTotalDTO[]> {
+        const rigs: RigEntity[] = await this.rigRepository.find();
+        let rigTotalDTOs: RigTotalDTO[] = [];
+        for (const rig of rigs) {
+            const lastRigSnapshot = await this.rigSnapshotRepository.findOne({
+                where: { rig: rig },
+                order: { timestamp: 'DESC' }
+            });
+            rigTotalDTOs.push({
+                name: rig.name,
+                value: lastRigSnapshot.totalUnpaidAmount.toFixed(8)
+            });
+        };
+        return rigTotalDTOs;
     }
 
     // Private helpers
@@ -163,9 +207,9 @@ export class RigMonitorService {
 
     private async calculateTotalUnpaidAmount(rigDetails: RigDetails): Promise<number> {
         const rig = await this.rigRepository.findOne({ where: { rigId: rigDetails.rigId } });
-        const lastRigSnapshot = await this.rigSnapshotRepository.findOne({ 
-            where: { rig: rig }, 
-            order: { timestamp: 'DESC' } 
+        const lastRigSnapshot = await this.rigSnapshotRepository.findOne({
+            where: { rig: rig },
+            order: { timestamp: 'DESC' }
         });
         if (lastRigSnapshot == null) {
             return 0;

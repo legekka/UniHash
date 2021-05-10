@@ -12,7 +12,7 @@ import { RigGateway } from './gateways/rig.gateway';
 import { RigSnapshotEntity } from './entities/rig-snapshot.entity';
 import { AccountBalanceEntity } from './entities/account-balance.entity';
 import { AccountController } from './controllers/account/account.controller';
-import { AccountService } from './services/account/services/account.service';
+import { AccountService } from './services/account/account.service';
 
 @Module({
   imports: [
