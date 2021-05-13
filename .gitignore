@@ -36,3 +36,6 @@ lerna-debug.log*
 # Database config
 ormconfig.json
 .development.env
+
+# Scripts
+*.sh
