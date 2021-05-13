@@ -13,6 +13,9 @@ import { RigSnapshotEntity } from './entities/rig-snapshot.entity';
 import { AccountBalanceEntity } from './entities/account-balance.entity';
 import { AccountController } from './controllers/account/account.controller';
 import { AccountService } from './services/account/account.service';
+import { CoinbaseService } from './services/coinbase/coinbase.service';
+import { PriceController } from './controllers/price/price.controller';
+import { PriceGateway } from './gateways/price.gateway';
 
 @Module({
   imports: [
@@ -23,8 +26,8 @@ import { AccountService } from './services/account/account.service';
     TypeOrmModule.forRoot(),
     TypeOrmModule.forFeature([RigEntity, RigSnapshotEntity, AccountBalanceEntity])
   ],
-  controllers: [AppController, RigController, AccountController],
-  providers: [AppService, NicehashService, RigMonitorService, RigGateway, AccountService],
+  controllers: [AppController, RigController, AccountController, PriceController],
+  providers: [AppService, NicehashService, RigMonitorService, RigGateway, PriceGateway, AccountService, CoinbaseService],
 })
 export class AppModule {
   constructor(private connection: Connection) { }

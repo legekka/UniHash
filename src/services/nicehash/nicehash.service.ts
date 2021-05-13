@@ -1,7 +1,7 @@
 import { HttpService, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Observable, of, zip } from 'rxjs';
-import { map, mergeMap } from 'rxjs/operators'
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Groups } from 'src/models/nicehash/group';
 import { v4 as uuidv4 } from 'uuid';
 import * as Crypto from 'crypto';
